@@ -6,8 +6,9 @@ from tqdm import tqdm
 import nltk
 
 import spacy
-from spacy.en import English
-parser  = English()
+# from spacy.en import English
+# parser  = English()
+parser = spacy.load('en')
 
 
 class Feature_helper(object):
@@ -151,8 +152,8 @@ class Feature_helper(object):
         return data
 
     def save(self):
-        pd.to_pickle(self.tag_dict,'./input/tag_dict.pkl')
-        pd.to_pickle(self.ent_dict,'./input/ent_dict.pkl')
+        pd.to_pickle(self.tag_dict,'../input/tag_dict.pkl')
+        pd.to_pickle(self.ent_dict,'../input/ent_dict.pkl')
 
 
 def generate_corpus(words):
@@ -162,11 +163,23 @@ def generate_corpus(words):
     return  ret
 
 
+def load_data(mode='train'):
+    X = pd.read_pickle('../input/' + mode + '_context_vec.pkl')
+    X_char = pd.read_pickle('../input/' + mode + '_char_vec.pkl')
+    Xq = pd.read_pickle('../input/' + mode + '_question_vec.pkl')
+    Xq_char = pd.read_pickle('../input/' + mode + '_question_char_vec.pkl')
+    if mode == 'train':
+        XYBegin = pd.read_pickle('../input/' + mode + '_ybegin_vec.pkl')
+        XYEnd = pd.read_pickle('../input/' + mode + '_yend_vec.pkl')
+        return X, X_char, Xq, Xq_char, XYBegin, XYEnd
+    return X, X_char, Xq, Xq_char
+
+
 if __name__ == '__main__':
     train_words, train_chars, train_q_words, train_q_chars, train_y_begin, train_y_end = load_data('train')
-    train_ids = pd.read_pickle('./input/train_question_id.pkl')
+    train_ids = pd.read_pickle('../input/train_question_id.pkl')
     dev_words, dev_chars, dev_q_words, dev_q_chars = load_data('dev')
-    vocab2id = pd.read_pickle('./input/word_vocab.pkl')
+    vocab2id = pd.read_pickle('../input/word_vocab.pkl')
 
     id2words = {i: k for k, i in vocab2id.items()}
     context_corpus = generate_corpus(train_words + dev_words)
@@ -174,9 +187,10 @@ if __name__ == '__main__':
 
     feature_extrator = Feature_helper(vocab2id,None)
     feature_extrator.fit(context_corpus,que_corpus,False)
-    features = feature_extrator.transform()
+    feature_extrator.save()
+    features = feature_extrator.transform()    
 
-    pd.to_pickle(features,'./input/embed_features.pkl')
+    pd.to_pickle(features,'../input/embed_features.pkl')
 
 
 
