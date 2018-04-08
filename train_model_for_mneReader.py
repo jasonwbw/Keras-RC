@@ -26,7 +26,7 @@ output_name = './outputs/squad_' + MODEL_NAME + '.pkl'
 GloveDimOption = 100
 EMBEDDING_DIM = 100
 
-BATCH_SIZE = 8
+BATCH_SIZE = 80
 VALIDATION_SPLIT = 0.1
 
 
@@ -230,7 +230,58 @@ def val_batch_generator_v2(train, batch_size=128):
             yield X_batch
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+#     train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
+#         train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end = load_data(
+#             'train')
+#     train_ids = pd.read_pickle('./input/train_question_id.pkl')
+
+#     dev_words, dev_chars, dev_tag, dev_ent, dev_em,\
+#         dev_q_words, dev_q_chars, dev_q_tag, dev_q_ent, dev_q_em, dev_q_type = load_data(
+#             'dev')
+
+#     vocab2id = pd.read_pickle('./input/word_vocab.pkl')
+#     char2ids = pd.read_pickle('./input/char_vocab.pkl')
+#     tag2id = pd.read_pickle('./input/tag_dict.pkl')
+#     ent2id = pd.read_pickle('./input/ent_dict.pkl')
+
+#     embedding_matrix = get_embedding_matrix(vocab2id, EMBEDDING_DIM, GloveDimOption)
+
+#     train_data = combine_input_data(train_q_words, train_words, train_q_chars, train_chars, train_q_tag, train_tag, train_q_ent, train_ent,
+#                                     train_q_em, train_em, train_q_type, train_ids, 'train')
+#     train_y = [train_y_begin, train_y_end]
+#     dev_data = combine_input_data(dev_q_words, dev_words, dev_q_chars, dev_chars, dev_q_tag, dev_tag, dev_q_ent,
+#                                   dev_ent, dev_q_em, dev_em, dev_q_type, None, 'dev')
+
+#     # train model
+#     bst_model_path = './model/squad_' + MODEL_NAME + '.hdf5'
+
+#     model = MneReader_Model(len(vocab2id), len(
+#         char2ids), embedding_matrix, len(tag2id), len(ent2id), use_highway=True)
+#     # model = MneReader_Model(len(vocab2id), len(
+#     #     char2ids), embedding_matrix, 1000, 1000, use_highway=False)
+
+#     model.summary()
+#     rms = optimizers.Adam(lr=0.0008)  # default
+#     model.compile(optimizer=rms, loss='categorical_crossentropy',
+#                   metrics=['accuracy'])
+
+#     evaluater = Evaluate_helper()
+#     trainer = Trainer_helper(model, log_dir='./logs/' + MODEL_NAME,
+#                              bst_model_path=bst_model_path, output_name=output_name, evaluate_helper=evaluater)
+#     trainer.set_train_generator(batch_generator_v2)
+#     trainer.set_valid_generator(val_batch_generator_v2)
+#     # trainer.load_weights(bst_model_path)
+
+#     trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, n_epoch=50, early_stop=5,
+#                 verbose_train=100, is_save_intermediate=False, method=['group_by_length'])
+
+#     # trainer.load_weights(bst_model_path)
+#     # prediction = trainer.predict_probs(dev_data, batch_size=70)
+#     # answers = trainer.predict(dev_data, batch_size=70)
+
+
+def prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008, ft_model_path=None, epoch=None, adjust_lr=False, save_epoch=False):
     train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
         train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end = load_data(
             'train')
@@ -255,14 +306,20 @@ if __name__ == '__main__':
 
     # train model
     bst_model_path = './model/squad_' + MODEL_NAME + '.hdf5'
+    if epoch is None:
+        weights_path = bst_model_path
+    else:
+        weights_path = './model/squad_' + MODEL_NAME + '.ep%d.hdf5' % epoch
 
-    model = MneReader_Model(len(vocab2id), len(
-        char2ids), embedding_matrix, len(tag2id), len(ent2id), use_highway=True)
+    # with tf.device('/cpu:0'):
     # model = MneReader_Model(len(vocab2id), len(
-    #     char2ids), embedding_matrix, 1000, 1000, use_highway=False)
+    #     char2ids), embedding_matrix, len(tag2id), len(ent2id), use_highway=True)
+    model = MneReader_Model(len(vocab2id), len(
+        char2ids), embedding_matrix, 1000, 1000, use_highway=False)
 
     model.summary()
-    rms = optimizers.Adam(lr=0.001)  # default
+    # rms = optimizers.Adadelta(lr=(lr / 10) if training and load_weights else lr)  # default
+    rms = optimizers.Adam(lr=(lr / 10) if training and load_weights else lr)  # default
     model.compile(optimizer=rms, loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
@@ -271,11 +328,48 @@ if __name__ == '__main__':
                              bst_model_path=bst_model_path, output_name=output_name, evaluate_helper=evaluater)
     trainer.set_train_generator(batch_generator_v2)
     trainer.set_valid_generator(val_batch_generator_v2)
-    # trainer.load_weights(bst_model_path)
 
-    trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, n_epoch=50, early_stop=5,
-                verbose_train=100, is_save_intermediate=False, method=['group_by_length'])
+    if load_weights:
+        if training and ft_model_path is not None:
+            trainer.load_weights(ft_model_path)
+        else:
+            trainer.load_weights(weights_path)
 
-    # trainer.load_weights(bst_model_path)
-    # prediction = trainer.predict_probs(dev_data, batch_size=70)
-    # answers = trainer.predict(dev_data, batch_size=70)
+    if test_code:
+        train_data = [d[:BATCH_SIZE * 2] for d in train_data]
+        train_y = [d[:BATCH_SIZE * 2] for d in train_y]
+
+    if training:
+        trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, dev_batch_size=BATCH_SIZE//4, n_epoch=50, early_stop=5,
+                    verbose_train=100, is_save_intermediate=False, method=['group_by_length'], adjust_lr=adjust_lr, save_epoch=save_epoch)
+    return trainer, dev_data
+
+
+def predict(text=False):
+    trainer, dev_data = prepare_model(training=False, test_code=False, load_weights=True, lr=0.5)
+    if not text:
+        return trainer.predict_probs(dev_data, batch_size=70)
+    return trainer.predict(dev_data, batch_size=70)
+
+
+def finetune(ft_model_path=None):
+    prepare_model(training=True, test_code=False, load_weights=True, lr=0.001, ft_model_path=ft_model_path)
+
+
+def evaluate(epoch=None):
+    trainer, dev_data = prepare_model(training=False, test_code=False, load_weights=True, lr=0.5)
+    em, f1 = trainer.evaluate_on_dev(dev_data, BATCH_SIZE//3, -1)  # can control huge data
+    print('--Dev Extract Match score :%f--------F1 score:%f' % (em, f1))
+
+
+if __name__ == '__main__':
+    # training
+    prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008, adjust_lr=True, save_epoch=True)
+    #
+    # finetune
+    # assert '_ft' in MODEL_NAME, 'model should be named as XXX_ft for the fine tune procedure'
+    # finetune(ft_model_path='./model/squad_' + MODEL_NAME.replace('_ft', '') + '.hdf5')
+    #
+    # predict
+    # pred = predict(text=False)
+    # pd.to_pickle(pred, './pred.pkl')

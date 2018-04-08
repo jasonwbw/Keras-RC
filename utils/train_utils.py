@@ -214,6 +214,7 @@ class Trainer_helper(object):
 
     def fit(self, train_x, train_y, valid_x,
             n_epoch, batch_size=1, dev_batch_size=10, early_stop=1, verbose_train=200, is_save_intermediate=False,
+            save_epoch=False, adjust_lr=False,
             method=['shuffle', 'sort_by_length', 'group_by_length']):
         """
         :param train_x:
@@ -299,6 +300,11 @@ class Trainer_helper(object):
             if em > best_em or f1 > best_f1:
                 self.model.save_weights(self.bst_model_path)
                 print('save model to ', self.bst_model_path)
+                if save_epoch:
+                    self.model.save_weights(
+                        self.bst_model_path.replace('.hdf5', '.ep%d.hdf5' % i))
+                    print('save model to ', self.bst_model_path.replace(
+                        '.hdf5', '.ep%d.hdf5' % i))
                 if em > best_em:
                     best_em = em
                 if f1 > best_f1:
@@ -309,6 +315,9 @@ class Trainer_helper(object):
                 if early_stop_step >= early_stop:
                     print('early stop @', i)
                     break
+                if adjust_lr:
+                    lr = float(K.get_value(self.model.optimizer.lr))
+                    K.set_value(self.model.optimizer.lr, lr / 2)
 
     def get_predict(self, valid_x, batch_size):
         te_gen = self.te_gen(valid_x, batch_size=batch_size)
