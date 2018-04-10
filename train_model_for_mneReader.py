@@ -230,57 +230,6 @@ def val_batch_generator_v2(train, batch_size=128):
             yield X_batch
 
 
-# if __name__ == '__main__':
-#     train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
-#         train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end = load_data(
-#             'train')
-#     train_ids = pd.read_pickle('./input/train_question_id.pkl')
-
-#     dev_words, dev_chars, dev_tag, dev_ent, dev_em,\
-#         dev_q_words, dev_q_chars, dev_q_tag, dev_q_ent, dev_q_em, dev_q_type = load_data(
-#             'dev')
-
-#     vocab2id = pd.read_pickle('./input/word_vocab.pkl')
-#     char2ids = pd.read_pickle('./input/char_vocab.pkl')
-#     tag2id = pd.read_pickle('./input/tag_dict.pkl')
-#     ent2id = pd.read_pickle('./input/ent_dict.pkl')
-
-#     embedding_matrix = get_embedding_matrix(vocab2id, EMBEDDING_DIM, GloveDimOption)
-
-#     train_data = combine_input_data(train_q_words, train_words, train_q_chars, train_chars, train_q_tag, train_tag, train_q_ent, train_ent,
-#                                     train_q_em, train_em, train_q_type, train_ids, 'train')
-#     train_y = [train_y_begin, train_y_end]
-#     dev_data = combine_input_data(dev_q_words, dev_words, dev_q_chars, dev_chars, dev_q_tag, dev_tag, dev_q_ent,
-#                                   dev_ent, dev_q_em, dev_em, dev_q_type, None, 'dev')
-
-#     # train model
-#     bst_model_path = './model/squad_' + MODEL_NAME + '.hdf5'
-
-#     model = MneReader_Model(len(vocab2id), len(
-#         char2ids), embedding_matrix, len(tag2id), len(ent2id), use_highway=True)
-#     # model = MneReader_Model(len(vocab2id), len(
-#     #     char2ids), embedding_matrix, 1000, 1000, use_highway=False)
-
-#     model.summary()
-#     rms = optimizers.Adam(lr=0.0008)  # default
-#     model.compile(optimizer=rms, loss='categorical_crossentropy',
-#                   metrics=['accuracy'])
-
-#     evaluater = Evaluate_helper()
-#     trainer = Trainer_helper(model, log_dir='./logs/' + MODEL_NAME,
-#                              bst_model_path=bst_model_path, output_name=output_name, evaluate_helper=evaluater)
-#     trainer.set_train_generator(batch_generator_v2)
-#     trainer.set_valid_generator(val_batch_generator_v2)
-#     # trainer.load_weights(bst_model_path)
-
-#     trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, n_epoch=50, early_stop=5,
-#                 verbose_train=100, is_save_intermediate=False, method=['group_by_length'])
-
-#     # trainer.load_weights(bst_model_path)
-#     # prediction = trainer.predict_probs(dev_data, batch_size=70)
-#     # answers = trainer.predict(dev_data, batch_size=70)
-
-
 def prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008, ft_model_path=None, epoch=None, adjust_lr=False, save_epoch=False):
     train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
         train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end = load_data(
