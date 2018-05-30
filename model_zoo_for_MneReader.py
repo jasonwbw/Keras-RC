@@ -84,7 +84,7 @@ def MneReader_Model(vocab_size, char_vocab_size, embedding_matrix, tag_size, ner
         InputLayer(input_shape=(max_char_size,), dtype='int32'),
         Embedding(input_dim=char_vocab_size,
                   output_dim=CHAR_EMBEDDING_DIM, mask_zero=True),
-        Bidirectional(RNN(units=CHAR_EMBEDDING_DIM))
+        Bidirectional(RNN(units=CHAR_EMBEDDING_DIM, dropout=DP)),
     ]))  # 100
 
     def Encoder(word_input, tag_input, ent_input, char_input, type='query'):
