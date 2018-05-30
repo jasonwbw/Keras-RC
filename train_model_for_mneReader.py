@@ -230,11 +230,29 @@ def val_batch_generator_v2(train, batch_size=128):
             yield X_batch
 
 
-def prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008, ft_model_path=None, epoch=None, adjust_lr=False, save_epoch=False):
+def filter_longer(train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
+        train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end, train_ids):
+    lists = [train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
+        train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end, train_ids]
+    dels = []
+    for i, x in enumerate(train_words):
+        if len(x) > 300:
+            dels.append(i)
+    for i, iid in enumerate(dels):
+        for j in range(len(lists)):
+            del lists[j][iid - i]
+    return lists
+
+
+
+def prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008, ft_model_path=None, epoch=None, adjust_lr=False, save_epoch=False, need_filter=False):
     train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
         train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end = load_data(
             'train')
     train_ids = pd.read_pickle('./input/train_question_id.pkl')
+    if need_filter:
+        filter_longer(train_words, train_chars, train_tag, train_ent, train_em, train_q_words, train_q_chars,\
+            train_q_tag, train_q_ent, train_q_em, train_q_type, train_y_begin, train_y_end, train_ids)
 
     dev_words, dev_chars, dev_tag, dev_ent, dev_em,\
         dev_q_words, dev_q_chars, dev_q_tag, dev_q_ent, dev_q_em, dev_q_type = load_data(

@@ -45,6 +45,22 @@ def load_data(mode='train'):
     return X, X_char, Xq, Xq_char
 
 
+def filter_longer(X, X_char, Xq, Xq_char, XYBegin, XYEnd, train_ids):
+    dels = []
+    for i, x in enumerate(X):
+        if len(x) > 300:
+            dels.append(i)
+    for i, iid in enumerate(dels):
+        del X[iid - i]
+        del X_char[iid - i]
+        del Xq[iid - i]
+        del Xq_char[iid - i]
+        del XYBegin[iid - i]
+        del XYEnd[iid - i]
+        del train_ids[iid - i]
+    return X, X_char, Xq, Xq_char, XYBegin, XYEnd, train_ids
+
+
 def train_valid_split(samples, VALIDATION_SPLIT=0.1):
     idx = np.arange(len(samples))
     np.random.seed(1024)
@@ -65,10 +81,13 @@ def combine_input_data(question_words, context_words, question_char, context_cha
     return ds
 
 
-def prepare_model(training=True, test_code=False, load_weights=False, lr=0.001, ft_model_path=None, epoch=None):
+def prepare_model(training=True, test_code=False, load_weights=False, lr=0.001, ft_model_path=None, epoch=None, need_filter=False):
     train_words, train_chars, train_q_words, train_q_chars, train_y_begin, train_y_end = load_data(
         'train')
     train_ids = pd.read_pickle('./input/train_question_id.pkl')
+    if need_filter:
+        train_words, train_chars, train_q_words, train_q_chars, train_y_begin, train_y_end, train_ids = filter_longer(
+            train_words, train_chars, train_q_words, train_q_chars, train_y_begin, train_y_end, train_ids)
 
     dev_words, dev_chars, dev_q_words, dev_q_chars = load_data('dev')
 
