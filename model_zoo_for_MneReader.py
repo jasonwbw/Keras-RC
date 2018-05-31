@@ -11,22 +11,8 @@ from keras.layers.pooling import GlobalMaxPooling1D
 from utils.layers.attention_layer4Mnemonic import Interactive_Align_attention, Self_Align_attention, MemoryBasedPointer
 from utils.layers.core_layer import Slice, SharedWeight
 
-max_char_size = 16
-# EMBEDDING_DIM = 100
-CHAR_EMBEDDING_DIM = 50
-CHAR_EMBED_METHOD = 'RNN'  # CNN
-HIDDEN_SIZE = 100
-MAX_SEQ_LEN = 400
-ENCODER_LAYERS = 1
-RNN_Cell = 'LSTM'
-DP = 0.2
-UNROLL = False
-MLP_LAYER = 1
 
-HOPS = 2
-
-
-def get_share_weight_():
+def get_share_weight_(HIDDEN_SIZE):
     Wci = SharedWeight(size=(2 * HIDDEN_SIZE, 2 * HIDDEN_SIZE), name='Wci')
     Wzi = SharedWeight(size=(2 * HIDDEN_SIZE, 2 * HIDDEN_SIZE), name='Wzi')
     Wcz = SharedWeight(size=(2 * HIDDEN_SIZE, 2 * HIDDEN_SIZE), name='Wcz')
@@ -42,12 +28,25 @@ def get_share_weight_():
     return Wci, Wzi, Wcz, v, Wfu, Wbu, Wgu, Wbg
 
 
-def MneReader_Model(vocab_size, char_vocab_size, embedding_matrix, tag_size, ner_size, use_highway=True, share_sm=True):
+def MneReader_Model(vocab_size, char_vocab_size, embedding_matrix, tag_size, ner_size, cfg):
+    # Init parameters
+    MAX_CHAR_SIZE = cfg.getint('Hyper-parameters', 'MAX_CHAR_SIZE')
+    CHAR_EMBEDDING_DIM = cfg.getint('Hyper-parameters', 'CHAR_EMBEDDING_DIM')
+    HIDDEN_SIZE = cfg.getint('Hyper-parameters', 'HIDDEN_SIZE')
+    ENCODER_LAYERS = cfg.getint('Hyper-parameters', 'ENCODER_LAYERS')
+    RNN_Cell = cfg.get('Hyper-parameters', 'RNN_Cell')
+    DP = cfg.getfloat('Hyper-parameters', 'DP')
+    UNROLL = cfg.getboolean('Hyper-parameters', 'UNROLL')
+    HOPS = cfg.getint('Hyper-parameters', 'HOPS')
+    use_highway = cfg.getboolean('Hyper-parameters', 'USE_HIGHWAY')
+    share_sm = cfg.getboolean('Hyper-parameters', 'SHARE_SM')
+
+    # Model details
     question_input = Input(shape=(None,), dtype='int32', name='question_input')
     context_input = Input(shape=(None,), dtype='int32', name='context_input')
-    question_char = Input(shape=(None, max_char_size,),
+    question_char = Input(shape=(None, MAX_CHAR_SIZE,),
                           dtype='int32', name='question_input_char')
-    context_char = Input(shape=(None, max_char_size,),
+    context_char = Input(shape=(None, MAX_CHAR_SIZE,),
                          dtype='int32', name='context_input_char')
 
     question_tag = Input(shape=(None,), dtype='int32',
@@ -81,7 +80,7 @@ def MneReader_Model(vocab_size, char_vocab_size, embedding_matrix, tag_size, ner
         output_dim=HIDDEN_SIZE // 2, input_dim=9, trainable=True, mask_zero=False)
 
     char_embedding_layer = TimeDistributed(Sequential([
-        InputLayer(input_shape=(max_char_size,), dtype='int32'),
+        InputLayer(input_shape=(MAX_CHAR_SIZE,), dtype='int32'),
         Embedding(input_dim=char_vocab_size,
                   output_dim=CHAR_EMBEDDING_DIM, mask_zero=True),
         Bidirectional(RNN(units=CHAR_EMBEDDING_DIM, dropout=DP)),
@@ -141,7 +140,7 @@ def MneReader_Model(vocab_size, char_vocab_size, embedding_matrix, tag_size, ner
         Cj = Dropout(rate=DP)(Cj)  # model self-aware context represention
 
     # memory pointer
-    Wci, Wzi, Wcz, v, Wfu, Wbu, Wgu, Wbg = get_share_weight_()
+    Wci, Wzi, Wcz, v, Wfu, Wbu, Wgu, Wbg = get_share_weight_(HIDDEN_SIZE)
     shared_weights = [Wci, Wzi, Wcz, v, Wfu, Wbu, Wgu, Wbg]
 
     fake_input = GlobalMaxPooling1D()(

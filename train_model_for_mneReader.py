@@ -15,19 +15,34 @@ from utils.evaluate_utils import Evaluate_helper
 from utils.train_utils import *
 # need self-generator
 
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+import sys
+from configparser import ConfigParser
 
-MODEL_NAME = 'MneReader_baseline'
+assert len(sys.argv) > 1 and '.cfg' in sys.argv[1], 'config file xxx.cfg should be given'
+
+config_path = sys.argv[1]
+cfg = ConfigParser()
+cfg.read(config_path)
+
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2'
+os.environ["CUDA_VISIBLE_DEVICES"] = cfg.get('Learning', 'GPU_CARD')
+
+MODEL_NAME = cfg.get('Model', 'MODEL_NAME')
 
 log_dir = './logs/'
 output_name = './outputs/squad_' + MODEL_NAME + '.pkl'
 
-GloveDimOption = 100
-EMBEDDING_DIM = 100
+GloveDimOption = cfg.getint('Hyper-parameters', 'EMBEDDING_DIM')
+EMBEDDING_DIM = cfg.getint('Hyper-parameters', 'EMBEDDING_DIM')
 
-BATCH_SIZE = 80
-VALIDATION_SPLIT = 0.1
+BATCH_SIZE = cfg.getint('Learning', 'BATCH_SIZE')
+MAX_SEQ_LEN = cfg.getint('Hyper-parameters', 'MAX_SEQ_LEN')
+
+LEARNING_RATE = cfg.getfloat('Learning', 'LEARNING_RATE')
+EARLY_STOP = cfg.getint('Learning', 'EARLY_STOP')
+VALIDATION_SPLIT = cfg.getfloat('Learning', 'VALIDATION_SPLIT')
+N_EPOCH = cfg.getint('Learning', 'N_EPOCH')
 
 
 def load_data(mode='train'):
@@ -279,10 +294,10 @@ def prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008,
         weights_path = './model/squad_' + MODEL_NAME + '.ep%d.hdf5' % epoch
 
     # with tf.device('/cpu:0'):
-    # model = MneReader_Model(len(vocab2id), len(
-    #     char2ids), embedding_matrix, len(tag2id), len(ent2id), use_highway=True)
     model = MneReader_Model(len(vocab2id), len(
-        char2ids), embedding_matrix, 1000, 1000, use_highway=False)
+        char2ids), embedding_matrix, len(tag2id), len(ent2id), cfg)
+    # model = MneReader_Model(len(vocab2id), len(
+    #     char2ids), embedding_matrix, 1000, 1000, use_highway=False)
 
     model.summary()
     # rms = optimizers.Adadelta(lr=(lr / 10) if training and load_weights else lr)  # default
@@ -307,7 +322,7 @@ def prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008,
         train_y = [d[:BATCH_SIZE * 2] for d in train_y]
 
     if training:
-        trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, dev_batch_size=BATCH_SIZE//4, n_epoch=50, early_stop=5,
+        trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, dev_batch_size=BATCH_SIZE//4, n_epoch=N_EPOCH, early_stop=EARLY_STOP,
                     verbose_train=100, is_save_intermediate=False, method=['group_by_length'], adjust_lr=adjust_lr, save_epoch=save_epoch)
     return trainer, dev_data
 
@@ -331,7 +346,7 @@ def evaluate(epoch=None):
 
 if __name__ == '__main__':
     # training
-    prepare_model(training=True, test_code=False, load_weights=False, lr=0.0008, adjust_lr=True, save_epoch=True)
+    prepare_model(training=True, test_code=False, load_weights=False, lr=LEARNING_RATE, adjust_lr=True, save_epoch=True)
     #
     # finetune
     # assert '_ft' in MODEL_NAME, 'model should be named as XXX_ft for the fine tune procedure'
