@@ -7,7 +7,7 @@ from keras.layers import concatenate, multiply, Layer
 
 from keras import initializers, activations
 
-from attention_utils import softmax, exp_mask, compute_mask
+from .attention_utils import softmax, exp_mask, compute_mask
 
 import tensorflow as tf
 
@@ -419,7 +419,7 @@ class FasterSelf_Attention4BiDAF(Self_Attention4BiDAF):
         h = inputs  # context [batch,P,2d]
 
         if self.linear_fun != 'tri':
-            return super(FasterSelf_Attention4BiDAF).call(inputs, mask=mask)
+            return super(FasterSelf_Attention4BiDAF, self).call(inputs, mask=mask)
 
         self.JX = K.shape(h)[1]
 

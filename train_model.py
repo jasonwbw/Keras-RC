@@ -11,11 +11,20 @@ from utils.evaluate_utils import Evaluate_helper
 
 import tensorflow as tf
 
+import sys
+from configparser import ConfigParser
+
+assert len(sys.argv) > 1 and '.cfg' in sys.argv[1], 'config file xxx.cfg should be given'
+
+config_path = sys.argv[1]
+cfg = ConfigParser()
+cfg.read(config_path)
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = '2'
+os.environ["CUDA_VISIBLE_DEVICES"] = cfg.get('Learning', 'GPU_CARD')
 
-MODEL_NAME = 'bidaf_satt'
+MODEL_NAME = cfg.get('Model', 'MODEL_NAME')
 
 log_dir = './logs/'
 if not os.path.exists(log_dir):
@@ -26,11 +35,16 @@ if not os.path.exists('./model/'):
     os.mkdir('./model/')
 output_name = './outputs/squad_' + MODEL_NAME + '.pkl'
 
-GloveDimOption = 100
-EMBEDDING_DIM = 100
+GloveDimOption = cfg.getint('Hyper-parameters', 'EMBEDDING_DIM')
+EMBEDDING_DIM = cfg.getint('Hyper-parameters', 'EMBEDDING_DIM')
 
-BATCH_SIZE = 32
-VALIDATION_SPLIT = 0.1
+BATCH_SIZE = cfg.getint('Learning', 'BATCH_SIZE')
+MAX_SEQ_LEN = cfg.getint('Hyper-parameters', 'MAX_SEQ_LEN')
+
+LEARNING_RATE = cfg.getfloat('Learning', 'LEARNING_RATE')
+EARLY_STOP = cfg.getint('Learning', 'EARLY_STOP')
+VALIDATION_SPLIT = cfg.getfloat('Learning', 'VALIDATION_SPLIT')
+N_EPOCH = cfg.getint('Learning', 'N_EPOCH')
 
 
 def load_data(mode='train'):
@@ -48,7 +62,7 @@ def load_data(mode='train'):
 def filter_longer(X, X_char, Xq, Xq_char, XYBegin, XYEnd, train_ids):
     dels = []
     for i, x in enumerate(X):
-        if len(x) > 300:
+        if len(x) > MAX_SEQ_LEN:
             dels.append(i)
     for i, iid in enumerate(dels):
         del X[iid - i]
@@ -61,7 +75,7 @@ def filter_longer(X, X_char, Xq, Xq_char, XYBegin, XYEnd, train_ids):
     return X, X_char, Xq, Xq_char, XYBegin, XYEnd, train_ids
 
 
-def train_valid_split(samples, VALIDATION_SPLIT=0.1):
+def train_valid_split(samples):
     idx = np.arange(len(samples))
     np.random.seed(1024)
     np.random.shuffle(idx)
@@ -110,8 +124,7 @@ def prepare_model(training=True, test_code=False, load_weights=False, lr=0.001, 
         weights_path = './model/squad_' + MODEL_NAME + '.ep%d.hdf5' % epoch
 
     # with tf.device('/cpu:0'):
-    model = BIDAF_Model(len(vocab2id), len(char2ids), embedding_matrix, use_highway=False,
-                        user_char_embed=True, use_sefatt=True)
+    model = BIDAF_Model(len(vocab2id), len(char2ids), embedding_matrix, cfg)
 
 
     model.summary()
@@ -135,7 +148,7 @@ def prepare_model(training=True, test_code=False, load_weights=False, lr=0.001, 
         train_y = [d[:BATCH_SIZE * 2] for d in train_y]
 
     if training:
-        trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, dev_batch_size=BATCH_SIZE//3, n_epoch=50, early_stop=5,
+        trainer.fit(train_data, train_y, dev_data, batch_size=BATCH_SIZE, dev_batch_size=BATCH_SIZE//3, n_epoch=N_EPOCH, early_stop=EARLY_STOP,
                     verbose_train=100, is_save_intermediate=False, method=['group_by_length'])
     return trainer, dev_data
 
@@ -159,7 +172,7 @@ def evaluate(epoch=None):
 
 if __name__ == '__main__':
     # training
-    prepare_model(training=True, test_code=False, load_weights=False, lr=0.001)
+    prepare_model(training=True, test_code=False, load_weights=False, lr=LEARNING_RATE)
     #
     # finetune
     # finetune(ft_model_path='./model/squad_' + MODEL_NAME.replace('_ft', '') + '.hdf5')
