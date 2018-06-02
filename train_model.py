@@ -171,12 +171,15 @@ def evaluate(epoch=None):
 
 
 if __name__ == '__main__':
-    # training
-    prepare_model(training=True, test_code=False, load_weights=False, lr=LEARNING_RATE)
-    #
-    # finetune
-    # finetune(ft_model_path='./model/squad_' + MODEL_NAME.replace('_ft', '') + '.hdf5')
-    #
-    # predict
-    # pred = predict(text=False)
-    # pd.to_pickle(pred, './pred.pkl')
+    action = cfg.get('Action', 'ACTION')
+    if action == 'train':
+        # training
+        prepare_model(training=True, test_code=False, load_weights=False, lr=LEARNING_RATE)
+    elif action == 'finetune':
+        assert '_ft' in MODEL_NAME, 'finetune action should append the model name with _ft'
+        # finetune
+        finetune(ft_model_path='./model/squad_' + MODEL_NAME.replace('_ft', '') + '.hdf5')
+    elif action == 'predict':
+        # predict
+        pred = predict(text=False)
+        pd.to_pickle(pred, './pred.pkl')
