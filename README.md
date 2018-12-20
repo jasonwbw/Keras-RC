@@ -1,4 +1,6 @@
-# RC
+# Keras-RC
+
+Reading Comprehension model implemented by Keras
 
 # Dependency
 - Python==3.6
